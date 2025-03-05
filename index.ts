@@ -74,17 +74,17 @@ export function client<T extends Record<string, CallableFunction>>(
 
 export const rpc = {
   input: <T extends Type>(schema: T) => ({
-    execute: activate(schema),
+    execute: createHandler(schema),
   }),
-  execute: activate(type("undefined")),
+  execute: createHandler(type("undefined")),
 };
 
-function activate<T extends Type>(schema: T) {
+function createHandler<T extends Type>(schema: T) {
   type Schema = typeof schema.infer;
   return function <R>(execute: (input: Schema) => Promise<R> | R) {
     return (
       schema.ifEquals("undefined")
-        ? () => execute(undefined as Schema)
+        ? () => execute(undefined)
         : (i: T["infer"]) => execute(schema.assert(i))
     ) as Schema extends undefined ? () => Promise<R>
       : (input: Schema) => Promise<R>;
