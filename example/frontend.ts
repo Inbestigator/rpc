@@ -3,11 +3,16 @@ import { Routes } from "./backend.ts";
 
 export const myClient = client<Routes>("http://0.0.0.0:8000");
 
-const res = await myClient.addUser.mutate({ id: "1" });
-console.log("addUser res", res);
-try {
-  await myClient.addPost.mutate();
-} catch (e) {
-  (e instanceof Error) &&
-    console.error("addPost error", e.message);
-}
+await myClient.createUser.mutate({
+  username: "foo",
+  password: "bar",
+});
+console.log("Created user");
+const user = await myClient.getUser.query({
+  username: "foo",
+  password: "bar",
+});
+console.log("Userdata:", user);
+
+const users = await myClient.listUsers.query();
+console.log("Users:", users);

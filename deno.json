@@ -1,7 +1,7 @@
 {
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4.7.4",
-    "arktype": "npm:arktype@^2.1.4",
+    "arktype": "npm:arktype@^2.1.6",
     "superjson": "npm:superjson@^2.2.2"
   }
 }
