@@ -5,7 +5,7 @@ const users = new Map<string, { password: string; emoji: string }>();
 
 const api = router({
   createUser: rpc.input(type({ username: "string", password: "string" }))
-    .mutate((input) => {
+    .execute((input) => {
       if (users.has(input.username)) {
         throw new Error("User already exists");
       }
@@ -14,17 +14,22 @@ const api = router({
         emoji: getEmoji(),
       });
     }),
-  getUser: rpc.input(type({ username: "string", password: "string" })).query(
+  getUser: rpc.input(type({ username: "string", password: "string" })).execute(
     (input) => {
       const user = users.get(input.username);
       if (!user || user.password !== input.password) {
         throw new Error("Unauthorized");
       }
-      return user;
+      return { ...user, username: input.username };
     },
   ),
-  listUsers: rpc.query(() => {
-    return Array.from(users.values());
+  listUsers: rpc.execute(() => {
+    return Array.from(
+      users.keys().map((username) => ({
+        username,
+        emoji: users.get(username)!.emoji,
+      })),
+    );
   }),
 });
 

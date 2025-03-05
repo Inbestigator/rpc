@@ -6,14 +6,7 @@ import { HTTPException } from "@hono/hono/http-exception";
 import { ContentfulStatusCode } from "@hono/hono/utils/http-status";
 import superjson from "superjson";
 
-type RouterMethod = "query" | "mutate";
-
-export function router<
-  T extends Record<
-    string,
-    { execute: { [k in RouterMethod]: CallableFunction }; method: RouterMethod }
-  >,
->(
+export function router<T extends Record<string, CallableFunction>>(
   routes: T,
   options?: {
     basePath?: string;
@@ -21,17 +14,13 @@ export function router<
 ) {
   const app = new Hono();
   for (const [key, value] of Object.entries(routes)) {
-    app[value.method === "mutate" ? "post" : "get"](
+    app.post(
       options?.basePath ? `${options.basePath}/${key}` : key,
       async (c) => {
         const parsedInput: Record<string, unknown> = {};
 
         try {
-          const rawInput = c.req.method === "GET"
-            ? c.req.query()
-            : await c.req.json();
-
-          for (const [key, value] of Object.entries(rawInput)) {
+          for (const [key, value] of Object.entries(await c.req.json())) {
             try {
               parsedInput[key] = superjson.parse(value as string);
             } catch {
@@ -43,7 +32,7 @@ export function router<
         }
 
         try {
-          const res = await value.execute[value.method](parsedInput);
+          const res = await value(parsedInput);
           return c.json(res ?? null);
         } catch (e) {
           if (e instanceof Error) {
@@ -60,12 +49,9 @@ export function router<
   };
 }
 
-export function client<
-  T extends Record<
-    string,
-    { execute: { [k in RouterMethod]: CallableFunction }; method: RouterMethod }
-  >,
->(baseUrl = "") {
+export function client<T extends Record<string, CallableFunction>>(
+  baseUrl = "",
+) {
   const client = hc(baseUrl, {
     async fetch(input: RequestInfo | URL, requestInit?: RequestInit) {
       const inputPath = input.toString().replace(baseUrl, "");
@@ -82,32 +68,25 @@ export function client<
     },
   });
   return generateProxy(client) as unknown as {
-    [K in keyof T]: T[K]["execute"];
+    [K in keyof T]: T[K];
   };
 }
 
 export const rpc = {
   input: <T extends Type>(schema: T) => ({
-    mutate: activate(schema, "mutate"),
-    query: activate(schema, "query"),
+    execute: activate(schema),
   }),
-  mutate: activate(type("undefined"), "mutate"),
-  query: activate(type("undefined"), "query"),
+  execute: activate(type("undefined")),
 };
 
-function activate<T extends Type>(schema: T, method: RouterMethod) {
+function activate<T extends Type>(schema: T) {
   type Schema = typeof schema.infer;
   return function <R>(execute: (input: Schema) => Promise<R> | R) {
-    return {
-      method,
-      execute: {
-        [method]: schema.ifEquals("undefined")
-          ? () => execute(undefined as Schema)
-          : (i: T["infer"]) => execute(schema.assert(i)),
-      } as {
-        [v in RouterMethod]: Schema extends undefined ? () => Promise<R>
-          : (input: Schema) => Promise<R>;
-      },
-    };
+    return (
+      schema.ifEquals("undefined")
+        ? () => execute(undefined as Schema)
+        : (i: T["infer"]) => execute(schema.assert(i))
+    ) as Schema extends undefined ? () => Promise<R>
+      : (input: Schema) => Promise<R>;
   };
 }
