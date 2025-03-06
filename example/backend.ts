@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { router, rpc } from "../index.ts";
+import { router, rpc } from "../mod.ts";
 
 const users = new Map<string, { password: string; emoji: string }>();
 
@@ -24,12 +24,11 @@ const api = router({
     },
   ),
   listUsers: rpc.execute(() => {
-    return Array.from(
-      users.keys().map((username) => ({
-        username,
-        emoji: users.get(username)!.emoji,
-      })),
-    );
+    const returnedUsers: { username: string; emoji: string }[] = [];
+    for (const [username, user] of users) {
+      returnedUsers.push({ username, emoji: user.emoji });
+    }
+    return returnedUsers;
   }),
 });
 

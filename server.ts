@@ -1,10 +1,6 @@
 import { Type, type } from "arktype";
 import { Hono } from "@hono/hono";
-import { generateProxy } from "./proxy.ts";
-import { hc } from "@hono/hono/client";
-import { HTTPException } from "@hono/hono/http-exception";
-import { ContentfulStatusCode } from "@hono/hono/utils/http-status";
-import superjson from "superjson";
+import { parse } from "superjson";
 
 export function router<T extends Record<string, CallableFunction>>(
   routes: T,
@@ -22,7 +18,7 @@ export function router<T extends Record<string, CallableFunction>>(
         try {
           for (const [key, value] of Object.entries(await c.req.json())) {
             try {
-              parsedInput[key] = superjson.parse(value as string);
+              parsedInput[key] = parse(value as string);
             } catch {
               parsedInput[key] = value;
             }
@@ -46,29 +42,6 @@ export function router<T extends Record<string, CallableFunction>>(
   return {
     app,
     routes,
-  };
-}
-
-export function client<T extends Record<string, CallableFunction>>(
-  baseUrl = "",
-) {
-  const client = hc(baseUrl, {
-    async fetch(input: RequestInfo | URL, requestInit?: RequestInit) {
-      const inputPath = input.toString().replace(baseUrl, "");
-      const targetUrl = baseUrl + inputPath;
-      const res = await fetch(targetUrl, {
-        ...requestInit,
-      });
-      if (!res.ok) {
-        throw new HTTPException(res.status as ContentfulStatusCode, {
-          message: await res.text(),
-        });
-      }
-      return res.json();
-    },
-  });
-  return generateProxy(client) as unknown as {
-    [K in keyof T]: T[K];
   };
 }
 

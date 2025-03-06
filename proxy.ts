@@ -1,5 +1,5 @@
 import { hc } from "@hono/hono/client";
-import superjson from "superjson";
+import { stringify } from "superjson";
 
 export function generateProxy(client: ReturnType<typeof hc>) {
   return new Proxy(client, {
@@ -12,9 +12,7 @@ export function generateProxy(client: ReturnType<typeof hc>) {
           return data;
         }
         return Object.fromEntries(
-          Object.entries(data).map((
-            [key, value],
-          ) => [key, superjson.stringify(value)]),
+          Object.entries(data).map(([key, value]) => [key, stringify(value)]),
         );
       }
 
